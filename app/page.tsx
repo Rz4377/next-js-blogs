@@ -1,48 +1,88 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import PostCard from '@/components/PostCard';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Search, Plus, TrendingUp } from 'lucide-react';
-import FeaturedPostImage from '@/components/FeaturedPostImage';
-import DeletePostButton from '@/components/DeletePostButton';
+import ErrorHandlingImage from '@/components/ErrorHandlingImage';
+import { toast } from 'sonner';
 
-async function getPosts() {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/posts`, {
-      cache: 'no-store',
-    });
-    if (!res.ok) {
-      throw new Error('Failed to fetch posts');
-    }
-    return res.json();
-  } catch (error) {
-    console.error('Error fetching posts:', error);
-    return [];
-  }
+interface Post {
+  _id: string;
+  title: string;
+  content: string;
+  imageUrl: string;
+  createdAt: string;
 }
 
-async function deletePost(id: string) {
-  'use server';
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/posts/${id}`, { 
-      method: 'DELETE',
-      cache: 'no-store'
-    });
-    if (!res.ok) {
-      throw new Error('Failed to delete post');
+export default function Home() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    // Fetch posts
+    async function fetchPosts() {
+      try {
+        const res = await fetch('/api/posts', {
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          throw new Error('Failed to fetch posts');
+        }
+        const data = await res.json();
+        setPosts(data);
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+        toast.error('Failed to load posts');
+      } finally {
+        setIsLoading(false);
+      }
     }
-  } catch (error) {
-    console.error('Error deleting post:', error);
-  }
-}
 
-export default async function Home() {
-  const posts = await getPosts();
+    fetchPosts();
+  }, []);
   
   // Placeholder for featured post (first post or random post if available)
   const featuredPost = posts && posts.length > 0 ? posts[0] : null;
   
   // Get remaining posts
   const remainingPosts = posts && posts.length > 1 ? posts.slice(1) : [];
+
+  // Handle delete post
+  const handleDeletePost = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this post?')) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/posts/${id}`, { 
+        method: 'DELETE',
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to delete post');
+      }
+      
+      toast.success('Post deleted successfully');
+      // Remove the post from state instead of reloading
+      setPosts(posts.filter(post => post._id !== id));
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      toast.error('Failed to delete post');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
+          <p className="text-gray-500">Loading posts...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main>
@@ -86,9 +126,11 @@ export default async function Home() {
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="md:flex">
               <div className="md:flex-shrink-0 md:w-1/3">
-                <FeaturedPostImage 
-                  imageUrl={featuredPost.imageUrl || "https://placehold.co/600x400/indigo/white?text=Featured+Post"}
-                  title={featuredPost.title}
+                <ErrorHandlingImage
+                  src={featuredPost.imageUrl || "https://placehold.co/600x400/indigo/white?text=Featured+Post"}
+                  alt={featuredPost.title}
+                  className="h-64 w-full object-cover md:h-full"
+                  fallbackSrc="https://placehold.co/600x400/indigo/white?text=Featured+Post"
                 />
               </div>
               <div className="p-8 md:w-2/3">
@@ -109,7 +151,14 @@ export default async function Home() {
                     <Link href={`/posts/${featuredPost._id}/edit`}>
                       <Button variant="ghost" size="sm">Edit</Button>
                     </Link>
-                    <DeletePostButton postId={featuredPost._id} />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700"
+                      onClick={() => handleDeletePost(featuredPost._id)}
+                    >
+                      Delete
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -141,11 +190,11 @@ export default async function Home() {
         <h2 className="text-2xl font-bold mb-6">Latest Posts</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {remainingPosts.length > 0 ? (
-            remainingPosts.map((post: any) => (
+            remainingPosts.map((post) => (
               <PostCard
                 key={post._id}
                 post={post}
-                onDelete={deletePost}
+                onDelete={handleDeletePost}
               />
             ))
           ) : (

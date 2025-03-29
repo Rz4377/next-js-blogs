@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { PenSquare, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -10,7 +10,14 @@ import Cookies from 'js-cookie';
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
-  const userEmail = Cookies.get('userEmail');
+  const [userEmail, setUserEmail] = useState<string | undefined>('');
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    // Only run on client side
+    setIsClient(true);
+    setUserEmail(Cookies.get('userEmail'));
+  }, []);
   
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -21,6 +28,31 @@ export default function Navbar() {
     { href: '/posts', label: 'Posts' },
     { href: userEmail ? '/profile' : '/signin', label: userEmail ? 'Profile' : 'Sign In' },
   ];
+
+  const handleSignOut = () => {
+    Cookies.remove('userEmail');
+    window.location.href = '/';
+  };
+
+  if (!isClient) {
+    // Skeleton loader for navbar
+    return (
+      <nav className="bg-white shadow-lg sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+            <div className="hidden md:flex items-center space-x-4">
+              <div className="h-8 w-20 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-8 w-20 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-8 w-20 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
@@ -56,10 +88,7 @@ export default function Navbar() {
               <Button
                 variant="outline"
                 className="ml-4 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                onClick={() => {
-                  Cookies.remove('userEmail');
-                  window.location.href = '/';
-                }}
+                onClick={handleSignOut}
               >
                 Sign Out
               </Button>
@@ -117,8 +146,7 @@ export default function Navbar() {
             {userEmail ? (
               <button
                 onClick={() => {
-                  Cookies.remove('userEmail');
-                  window.location.href = '/';
+                  handleSignOut();
                   setIsMenuOpen(false);
                 }}
                 className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50"

@@ -3,11 +3,19 @@
 import { Home, BookOpen, User, LogIn, LogOut, PenSquare, Heart, Star } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Cookies from 'js-cookie';
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const userEmail = Cookies.get('userEmail');
+  const [userEmail, setUserEmail] = useState<string | undefined>('');
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    // Only run on client side
+    setIsClient(true);
+    setUserEmail(Cookies.get('userEmail'));
+  }, []);
 
   const mainLinks = [
     { href: '/', icon: Home, label: 'Home' },
@@ -22,6 +30,15 @@ export default function Sidebar() {
         { href: '/bookmarks', icon: Star, label: 'Bookmarks' },
       ]
     : [{ href: '/signin', icon: LogIn, label: 'Sign In' }];
+
+  const handleSignOut = () => {
+    Cookies.remove('userEmail');
+    window.location.href = '/';
+  };
+
+  if (!isClient) {
+    return null; // Don't render anything on server 
+  }
 
   return (
     <>
@@ -75,10 +92,7 @@ export default function Sidebar() {
               
               {userEmail && (
                 <button
-                  onClick={() => {
-                    Cookies.remove('userEmail');
-                    window.location.href = '/';
-                  }}
+                  onClick={handleSignOut}
                   className="w-full group flex items-center px-4 py-3 text-sm font-medium rounded-lg text-red-300 hover:bg-red-900/30 hover:text-white transition-all duration-200"
                 >
                   <LogOut className="mr-3 h-5 w-5 flex-shrink-0" />

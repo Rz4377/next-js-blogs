@@ -1,4 +1,3 @@
-// components/ErrorHandlingImage.tsx
 'use client';
 
 interface ErrorHandlingImageProps {
